@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Server</title>
+<style>
+  /* ---- Hintergrund Animation ---- */
+  body, html {
+    margin: 0; padding: 0; height: 100%;
+    background: #121212;
+    font-family: Arial, sans-serif;
+    overflow-x: hidden;
+  }
+  canvas#bgCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    background: #121212;
+  }
+
+  /* ---- UI Styles ---- */
+  body {
+    color: #eee;
+    padding: 2rem;
+    max-width: 1400px;
+    margin: auto;
+    text-align: center;
+    position: relative;
+  }
+  h1 {
+    color: #00ff90;
+    text-shadow: 0 0 5px #00ff90;
+    margin-bottom: 1rem;
+  }
+  #toggleUiBtn {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 5px;
+    background-color: #00ff90;
+    color: #121212;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 0 8px #00ff90;
+    transition: background-color 0.3s ease;
+    z-index: 1000;
+  }
+  #toggleUiBtn:hover {
+    background-color: #00cc72;
+  }
+  #searchContainer, #searchContainer2 {
+    margin-bottom: 1.5rem;
+  }
+  #searchInput, #searchInput2 {
+    width: 300px;
+    padding: 0.5rem 1rem;
+    font-size: 1.1rem;
+    border-radius: 25px;
+    border: none;
+    outline: none;
+    box-shadow: 0 0 10px #00ff90;
+    background-color: #1e1e1e;
+    color: #eee;
+    transition: box-shadow 0.3s ease;
+  }
+  #searchInput::placeholder, #searchInput2::placeholder {
+    color: #999;
+  }
+  #searchInput:focus, #searchInput2:focus {
+    box-shadow: 0 0 15px #00ff90;
+  }
+  #servers, #moreServers {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1.5rem;
+  }
+  .server {
+    background-color: #1e1e1e;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 0 10px #00ff90;
+    text-align: center;
+  }
+  button {
+    margin: 0.3rem;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    background-color: #00ff90;
+    color: #121212;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:disabled {
+    background-color: #555;
+    color: #999;
+    cursor: default;
+  }
+  button:hover:not(:disabled) {
+    background-color: #00cc72;
+  }
+  .status {
+    margin-top: 0.5rem;
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+  .code {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    font-family: monospace;
+    background-color: #0f0f0f;
+    color: #00ff90;
+    border-radius: 4px;
+    user-select: all;
+    display: none;
+    box-shadow: inset 0 0 5px #00ff90;
+  }
+  .progress-container {
+    margin-top: 0.5rem;
+    width: 100%;
+    background-color: #333;
+    border-radius: 5px;
+    height: 12px;
+    overflow: hidden;
+    box-shadow: inset 0 0 5px #00ff90;
+  }
+  .progress-bar {
+    height: 100%;
+    background-color: #00ff90;
+    width: 100%;
+    transition: width 1s linear;
+  }
+  /* Zweite UI verstecken */
+  #secondUI {
+    display: none;
+    margin-top: 3rem;
+  }
+  #backBtn {
+    margin-bottom: 1.5rem;
+  }
+
+  /* ---- Chat Support Fenster ---- */
+  #chatButton {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #00ff90;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    box-shadow: 0 0 10px #00ff90;
+    cursor: pointer;
+    font-size: 28px;
+    color: #121212;
+    z-index: 2000;
+    transition: background-color 0.3s ease;
+  }
+  #chatButton:hover {
+    background: #00cc72;
+  }
+
+  #chatWindow {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 320px;
+    max-height: 400px;
+    background: #1e1e1e;
+    border-radius: 10px;
+    box-shadow: 0 0 15px #00ff90;
+    display: none;
+    flex-direction: column;
+    z-index: 2000;
+  }
+  #chatHeader {
+    background: #00ff90;
+    color: #121212;
+    padding: 10px;
+    border-radius: 10px 10px 0 0;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #chatMessages {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    color: #eee;
+    font-size: 14px;
+  }
+  .message {
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    max-width: 80%;
+    word-wrap: break-word;
+  }
+  .message.user {
+    background: #00ff90;
+    color: #121212;
+    align-self: flex-end;
+  }
+  .message.bot {
+    background: #333;
+    color: #eee;
+    align-self: flex-start;
+  }
+  #chatInputContainer {
+    display: flex;
+    border-top: 1px solid #00ff90;
+  }
+  #chatInput {
+    flex: 1;
+    border: none;
+    padding: 10px;
+    border-radius: 0 0 0 10px;
+    font-size: 14px;
+    background: #121212;
+    color: #eee;
+    outline: none;
+  }
+  #sendBtn {
+    border: none;
+    background: #00ff90;
+    color: #121212;
+    padding: 0 20px;
+    cursor: pointer;
+    border-radius: 0 0 10px 0;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+  }
+  #sendBtn:hover {
+    background: #00cc72;
+  }
+</style>
+</head>
+<body>
+
+<!-- Hintergrund Canvas -->
+<canvas id="bgCanvas"></canvas>
+
+<button id="toggleUiBtn">Mehr Server</button>
+
+<div id="mainUI">
+  <h1>Server</h1>
+
+  <div id="searchContainer">
+    <input id="searchInput" type="text" placeholder="Server suchen..." />
+  </div>
+
+  <div id="servers"></div>
+</div>
+
+<div id="secondUI">
+  <h1>Weitere Server</h1>
+  <button id="backBtn">Zurück zur Serverübersicht</button>
+  
+  <div id="searchContainer2">
+    <input id="searchInput2" type="text" placeholder="Server suchen..." />
+  </div>
+
+  <div id="moreServers"></div>
+</div>
+
+<script>
+  // Umschalt-Buttons & UI-Logik
+  const toggleUiBtn = document.getElementById('toggleUiBtn');
+  const backBtn = document.getElementById('backBtn');
+  const mainUI = document.getElementById('mainUI');
+  const secondUI = document.getElementById('secondUI');
+
+  toggleUiBtn.addEventListener('click', () => {
+    mainUI.style.display = 'none';
+    secondUI.style.display = 'block';
+    toggleUiBtn.style.display = 'none';
+  });
+
+  backBtn.addEventListener('click', () => {
+    secondUI.style.display = 'none';
+    mainUI.style.display = 'block';
+    toggleUiBtn.style.display = 'inline-block';
+  });
+
+  // Servernamen-Arrays
+  const serverNameParts1 = [
+    "Nebula", "Quantum", "Pulse", "Echo", "Zenith", "Apex", "Nova", "Vortex", "Orbit", "Nimbus",
+    "Spectra", "Fusion", "Halo", "Radiant", "Eclipse", "Vertex", "Glide", "Phantom", "Aura", "Solace"
+  ];
+  const serverNameParts2 = [
+    "Core", "Node", "Base", "Hub", "Point", "Nest", "Forge", "Grid", "Sector", "Domain",
+    "Station", "Matrix", "Loop", "Portal", "Stream", "Field", "Beacon", "Cluster", "Wave", "Edge"
+  ];
+
+  // Name + Code Generatoren
+  function getRandomName() {
+    const part1 = serverNameParts1[Math.floor(Math.random() * serverNameParts1.length)];
+    const part2 = serverNameParts2[Math.floor(Math.random() * serverNameParts2.length)];
+    return part1 + ' ' + part2;
+  }
+  function getRandomCode() {
+    return Math.floor(Math.random() * 10000).toString().padStart(5, '0');
+  }
+
+  // Server Arrays
+  const serversData = [];
+  for (let i = 1; i <= 100; i++) {
+    serversData.push({ name: getRandomName(), code: getRandomCode() });
+  }
+  const moreServersData = [];
+  for (let i = 1; i <= 50; i++) {
+    moreServersData.push({ name: getRandomName(), code: getRandomCode() });
+  }
+
+  // UI Container
+  const serversDiv = document.getElementById('servers');
+  const moreServersDiv = document.getElementById('moreServers');
+
+  // Hilfsfunktion zum Erstellen eines Servers (wiederverwendbar)
+  function createServerElement(server) {
+    const container = document.createElement('div');
+    container.classList.add('server');
+
+    const title = document.createElement('h2');
+    title.textContent = server.name;
+    container.appendChild(title);
+
+    const status = document.createElement('div');
+    status.classList.add('status');
+    status.textContent = 'Status: offline';
+    container.appendChild(status);
+
+    const code = document.createElement('div');
+    code.classList.add('code');
+    code.textContent = server.code;
+    container.appendChild(code);
+
+    const progressContainer = document.createElement('div');
+    progressContainer.classList.add('progress-container');
+    container.appendChild(progressContainer);
+
+    const progressBar = document.createElement('div');
+    progressBar.classList.add('progress-bar');
+    progressContainer.appendChild(progressBar);
+
+    const startBtn = document.createElement('button');
+    startBtn.textContent = 'Server starten';
+    container.appendChild(startBtn);
+
+    const stopBtn = document.createElement('button');
+    stopBtn.textContent = 'Server stoppen';
+    stopBtn.disabled = true;
+    container.appendChild(stopBtn);
+
+    let running = false;
+    let countdownInterval;
+    let runTimerInterval;
+    let remainingSeconds = 0;
+
+    function startCountdown(seconds, onTick, onComplete) {
+      let counter = seconds;
+      onTick(counter);
+      countdownInterval = setInterval(() => {
+        counter--;
+        if (counter > 0) {
+          onTick(counter);
+        } else {
+          clearInterval(countdownInterval);
+          onComplete();
+        }
+      }, 1000);
+    }
+
+    function formatTime(seconds) {
+      const min = Math.floor(seconds / 60);
+      const sec = seconds % 60;
+      return `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+    }
+
+    function startRunTimer(duration) {
+      remainingSeconds = duration;
+      updateProgressBar();
+      status.textContent = `Status: läuft (${formatTime(remainingSeconds)})`;
+
+      runTimerInterval = setInterval(() => {
+        remainingSeconds--;
+        if (remainingSeconds > 0) {
+          status.textContent = `Status: läuft (${formatTime(remainingSeconds)})`;
+          updateProgressBar();
+        } else {
+          clearInterval(runTimerInterval);
+          stopServerAuto();
+        }
+      }, 1000);
+    }
+
+    function updateProgressBar() {
+      const progressPercent = (remainingSeconds / 300) * 100;
+      progressBar.style.width = progressPercent + '%';
+    }
+
+    function stopServerAuto() {
+      running = false;
+      status.textContent = 'Status: offline (automatisch gestoppt)';
+      code.style.display = 'none';
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      progressBar.style.width = '0%';
+      alert(`${server.name} wurde automatisch nach 5 Minuten gestoppt.`);
+    }
+
+    startBtn.addEventListener('click', () => {
+      if (!running) {
+        startBtn.disabled = true;
+        stopBtn.disabled = true;
+        startCountdown(3,
+          (sec) => {
+            status.textContent = `Status: starte... (${sec}...)`;
+          },
+          () => {
+            running = true;
+            code.style.display = 'block';
+            stopBtn.disabled = false;
+            alert(`${server.name} ist jetzt online! Code: ${server.code}`);
+            startRunTimer(300);
+          }
+        );
+      }
+    });
+
+    stopBtn.addEventListener('click', () => {
+      if (running) {
+        clearInterval(runTimerInterval);
+        startBtn.disabled = true;
+        stopBtn.disabled = true;
+        startCountdown(3,
+          (sec) => {
+            status.textContent = `Status: stoppe... (${sec}...)`;
+          },
+          () => {
+            running = false;
+            status.textContent = 'Status: offline';
+            code.style.display = 'none';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            progressBar.style.width = '0%';
+          }
+        );
+      }
+    });
+
+    return container;
+  }
+
+  // Server in erste UI
+  serversData.forEach(server => {
+    const el = createServerElement(server);
+    serversDiv.appendChild(el);
+  });
+
+  // Server in zweite UI
+  moreServersData.forEach(server => {
+    const el = createServerElement(server);
+    moreServersDiv.appendChild(el);
+  });
+
+  // Suchfunktion für erste UI
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase();
+    [...serversDiv.children].forEach(serverEl => {
+      const name = serverEl.querySelector('h2').textContent.toLowerCase();
+      serverEl.style.display = name.includes(query) ? 'block' : 'none';
+    });
+  });
+  // Suchfunktion für zweite UI
+  const searchInput2 = document.getElementById('searchInput2');
+  searchInput2.addEventListener('input', () => {
+    const query = searchInput2.value.toLowerCase();
+    [...moreServersDiv.children].forEach(serverEl => {
+      const name = serverEl.querySelector('h2').textContent.toLowerCase();
+      serverEl.style.display = name.includes(query) ? 'block' : 'none';
+    });
+  });
+
+  /* ------------- Hintergrund Animation (Canvas Partikel) ------------- */
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d');
+  let width, height;
+  let particles = [];
+
+  function resizeCanvas() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  class Particle {
+    constructor() {
+      this.x = Math.random() * width;
+      this.y = Math.random() * height;
+      this.radius = Math.random() * 1.5 + 0.5;
+      this.speedX = (Math.random() - 0.5) * 0.3;
+      this.speedY = (Math.random() - 0.5) * 0.3;
+    }
+    update() {
+      this.x += this.speedX;
+      this.y += this.speedY;
+      if(this.x < 0 || this.x > width) this.speedX *= -1;
+      if(this.y < 0 || this.y > height) this.speedY *= -1;
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(0,255,144,0.6)';
+      ctx.shadowColor = '#00ff90';
+      ctx.shadowBlur = 8;
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function initParticles() {
+    particles = [];
+    for(let i = 0; i < 150; i++) {
+      particles.push(new Particle());
+    }
+  }
+  initParticles();
+
+  function animate() {
+    ctx.clearRect(0, 0, width, height);
+    particles.forEach(p => {
+      p.update();
+      p.draw();
+    });
+
+    // Verbindungslinien zwischen Partikeln nahe beieinander
+    for(let i=0; i < particles.length; i++) {
+      for(let j=i+1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if(dist < 100) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(0,255,144,${1 - dist/100})`;
+          ctx.lineWidth = 1;
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  /* ------------- Chat Support Widget ------------- */
+  const chatButton = document.createElement('button');
+  chatButton.id = 'chatButton';
+  chatButton.textContent = '💬';
+  document.body.appendChild(chatButton);
+
+  const chatWindow = document.createElement('div');
+  chatWindow.id = 'chatWindow';
+  chatWindow.innerHTML = `
+    <div id="chatHeader">Support Chat <button id="closeChat" style="background:none;border:none;font-weight:bold;font-size:18px;cursor:pointer;">×</button></div>
+    <div id="chatMessages"></div>
+    <div id="chatInputContainer">
+      <input id="chatInput" type="text" placeholder="Nachricht schreiben..." />
+      <button id="sendBtn">Senden</button>
+    </div>
+  `;
+  document.body.appendChild(chatWindow);
+
+  const closeChatBtn = chatWindow.querySelector('#closeChat');
+  const chatMessages = chatWindow.querySelector('#chatMessages');
+  const chatInput = chatWindow.querySelector('#chatInput');
+  const sendBtn = chatWindow.querySelector('#sendBtn');
+
+  chatButton.addEventListener('click', () => {
+    chatWindow.style.display = 'flex';
+    chatButton.style.display = 'none';
+    chatInput.focus();
+  });
+
+  closeChatBtn.addEventListener('click', () => {
+    chatWindow.style.display = 'none';
+    chatButton.style.display = 'block';
+  });
+
+  function addMessage(text, sender='bot') {
+    const msg = document.createElement('div');
+    msg.classList.add('message', sender);
+    msg.textContent = text;
+    chatMessages.appendChild(msg);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // Einfache Bot-Antwort
+  function botReply(input) {
+    const lower = input.toLowerCase();
+    if(lower.includes('hallo') || lower.includes('hi')) return 'Hallo! Wie kann ich dir helfen?';
+    if(lower.includes('server')) return 'Möchtest du mehr über unsere Server erfahren?';
+    if(lower.includes('hilfe')) return 'Ich helfe dir gerne! Was genau möchtest du wissen?';
+    if(lower.includes('danke')) return 'Gern geschehen! Wenn du weitere Fragen hast, einfach fragen.';
+    return 'Entschuldigung, das habe ich nicht verstanden. Kannst du das anders formulieren?';
+  }
+
+  sendBtn.addEventListener('click', () => {
+    const text = chatInput.value.trim();
+    if(text === '') return;
+    addMessage(text, 'user');
+    chatInput.value = '';
+    setTimeout(() => {
+      const reply = botReply(text);
+      addMessage(reply, 'bot');
+    }, 700);
+  });
+
+  chatInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') sendBtn.click();
+  });
+
+</script>
+
+</body>
+</html>
+
